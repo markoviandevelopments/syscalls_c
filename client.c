@@ -4,11 +4,12 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/syscall.h> // Added for SYS_* constants
 
 int main() {
     // Create socket
-    int client_fd = syscall(SYS_socket, AF_INET, SOCK_STREAM, 0);
-    if (client_fd == -1) {
+    int server_fd = syscall(SYS_socket, AF_INET, SOCK_STREAM, 0);
+    if (server_fd == -1) {
         syscall(SYS_write, 2, "Socket creation failed\n", 22);
         return 1;
     }
@@ -19,24 +20,33 @@ int main() {
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(8080);
 
-    // Connect to server
-    if (syscall(SYS_connect, client_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-        syscall(SYS_write, 2, "Connection failed\n", 17);
+    // Bind socket
+    if (syscall(SYS_bind, server_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+        syscall(SYS_write, 2, "Bind failed\n", 12);
         return 1;
     }
 
-    // Read from socket
-    char buffer[1024] = {0};
-    ssize_t bytes_read = syscall(SYS_read, client_fd, buffer, sizeof(buffer) - 1);
-    if (bytes_read == -1) {
-        syscall(SYS_write, 2, "Read failed\n", 12);
+    // Listen
+    if (syscall(SYS_listen, server_fd, 5) == -1) {
+        syscall(SYS_write, 2, "Listen failed\n", 14);
         return 1;
     }
 
-    // Write to stdout
-    syscall(SYS_write, 1, buffer, bytes_read);
+    // Accept connection
+    struct sockaddr_in client_addr;
+    socklen_t client_len = sizeof(client_addr);
+    int client_fd = syscall(SYS_accept, server_fd, (struct sockaddr*)&client_addr, &client_len);
+    if (client_fd == -1) {
+        syscall(SYS_write, 2, "Accept failed\n", 14);
+        return 1;
+    }
 
-    // Close socket
+    // Write to socket
+    const char *message = "Hello from server!\n";
+    syscall(SYS_write, client_fd, message, strlen(message));
+
+    // Close sockets
     syscall(SYS_close, client_fd);
+    syscall(SYS_close, server_fd);
     return 0;
 }
