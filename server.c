@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/syscall.h> // Added for SYS_* constants
 
 int main() {
     // Create socket
