@@ -1,1 +1,4 @@
 *.o
+server
+client
+file_read_write/file_syscall
